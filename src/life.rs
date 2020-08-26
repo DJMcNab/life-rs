@@ -1,5 +1,5 @@
 use super::board::Board;
-use bevy::{app::startup_stage, prelude::*};
+use bevy::prelude::*;
 use rand::Rng;
 
 #[derive(Clone)]
@@ -11,10 +11,9 @@ pub struct Life {
 
 impl Plugin for Life {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_resource(Board::new(64, 64, 2.0))
+        app.add_resource(Board::new(30, 30, 2.0))
             .add_resource(self.clone())
-            .add_startup_system(setup_theme.system())
-            .add_startup_system_to_stage(startup_stage::POST_STARTUP, setup.system())
+            .add_startup_system(setup.system())
             .add_system(rules.system())
             .add_system_to_stage(stage::POST_UPDATE, update_tiles.system())
             .add_system_to_stage(stage::LAST, draw_tiles.system());
@@ -37,8 +36,6 @@ struct Tile {
     next_state: TileState,
     neighbours: [Entity; 8],
 }
-
-fn setup_theme() {}
 
 fn setup(
     mut commands: Commands,
