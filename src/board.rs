@@ -1,47 +1,48 @@
 use bevy::math::Vec2;
-
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub enum TileState {
-    Alive,
-    Dead,
-}
-
-#[derive(Clone, Debug)]
-pub struct Tile {
-    pub position: Vec2,
-    pub state: TileState,
-}
-
-impl Tile {
-    pub fn new() -> Self {
-        Tile {
-            position: Vec2::zero(),
-            state: TileState::Alive,
-        }
-    }
-}
+use std::ops::Add;
 
 pub struct Board {
     pub width: i32,
     pub height: i32,
-    pub tiles: Box<Vec<Tile>>,
     pub border: Vec2,
+}
+
+#[derive(Copy, Clone)]
+pub struct CellPosition {
+    x: i32,
+    y: i32,
+}
+
+impl From<CellPosition> for Vec2 {
+    fn from(pos: CellPosition) -> Self {
+        Vec2::new(pos.x as f32, pos.y as f32)
+    }
+}
+
+impl Add<CellPosition> for CellPosition {
+    type Output = CellPosition;
+
+    fn add(self, rhs: CellPosition) -> Self::Output {
+        CellPosition {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl From<(i32, i32)> for CellPosition {
+    fn from((x, y): (i32, i32)) -> Self {
+        CellPosition { x, y }
+    }
 }
 
 impl Board {
     pub fn new(width: i32, height: i32, border: f32) -> Self {
-        let mut board = Board {
+        Board {
             width,
             height,
-            tiles: Box::new(vec![Tile::new(); (width * height) as usize]),
             border: Vec2::new(border, border),
-        };
-
-        for i in 0..board.length() {
-            board.tiles[i as usize].position = board.idx2vec(i);
         }
-
-        board
     }
 
     pub fn length(&self) -> i32 {
@@ -52,46 +53,14 @@ impl Board {
         Vec2::new(self.width as f32, self.height as f32)
     }
 
-    pub fn get_neighbors(&self, position: Vec2) -> Vec<Tile> {
-        let mut neighbors = Vec::new();
+    pub fn idx2vec(&self, index: i32) -> CellPosition {
+        let x = index % self.width;
+        let y = index / self.width;
 
-        let mut positions: Vec<Vec2> = Vec::new();
-
-        positions.push(position + Vec2::new(0.0, 1.0));
-        positions.push(position + Vec2::new(0.0, -1.0));
-        positions.push(position + Vec2::new(1.0, 0.0));
-        positions.push(position + Vec2::new(-1.0, 0.0));
-
-        positions.push(position + Vec2::new(1.0, 1.0));
-        positions.push(position + Vec2::new(1.0, -1.0));
-        positions.push(position + Vec2::new(-1.0, 1.0));
-        positions.push(position + Vec2::new(-1.0, -1.0));
-
-        for pos in positions.iter() {
-            if pos.x() as i32 >= self.width
-                || pos.x() < 0.0
-                || pos.y() as i32 >= self.height
-                || pos.y() < 0.0
-            {
-                continue;
-            }
-
-            let idx = self.vec2idx(pos.clone()) as usize;
-            let tile = self.tiles[idx].clone();
-            neighbors.push(tile);
-        }
-
-        neighbors
+        CellPosition { x, y }
     }
 
-    pub fn idx2vec(&self, index: i32) -> Vec2 {
-        let x = (index % self.width) as f32;
-        let y = (index / self.width) as f32;
-
-        Vec2::new(x, y)
-    }
-
-    pub fn vec2idx(&self, vec: Vec2) -> i32 {
-        vec.y() as i32 * self.width + vec.x() as i32
+    pub fn vec2idx(&self, vec: CellPosition) -> i32 {
+        vec.y * self.width + vec.x
     }
 }
