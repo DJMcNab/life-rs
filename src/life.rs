@@ -11,12 +11,11 @@ pub struct Life {
 
 impl Plugin for Life {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_resource(Board::new(30, 30, 2.0))
+        app.add_resource(Board::new(64, 64, 2.0))
             .add_resource(self.clone())
             .add_startup_system(setup.system())
             .add_system(rules.system())
-            .add_system_to_stage(stage::POST_UPDATE, update_tiles.system())
-            .add_system_to_stage(stage::LAST, draw_tiles.system());
+            .add_system_to_stage(stage::POST_UPDATE, update_tiles.system());
     }
 }
 #[derive(Copy, Clone, PartialEq, Debug, Eq)]
@@ -128,15 +127,7 @@ fn neighbours(default: Entity, board: &Board, index: i32, cells: &[Entity]) -> [
     return neighbours;
 }
 
-fn rules(
-    board: Res<Board>,
-    mut tiles: Query<(&mut Tile, &TileState)>,
-    livenesses: Query<&TileState>,
-) {
-    let mut alive_vec = Vec::new();
-
-    alive_vec.resize(board.length() as usize, 0);
-
+fn rules(mut tiles: Query<(&mut Tile, &TileState)>, livenesses: Query<&TileState>) {
     for (mut tile, state) in &mut tiles.iter() {
         let alive_count = tile
             .neighbours
@@ -163,15 +154,13 @@ fn rules(
     }
 }
 
-fn update_tiles(mut query: Query<(&mut TileState, &Tile)>) {
-    for (mut state, tile) in &mut query.iter() {
+fn update_tiles(
+    theme: Res<ColorTheme>,
+    mut query: Query<(&mut TileState, &Tile, &mut Handle<ColorMaterial>)>,
+) {
+    for (mut state, tile, mut mat) in &mut query.iter() {
         *state = tile.next_state;
-    }
-}
-
-fn draw_tiles(theme: Res<ColorTheme>, mut query: Query<(&TileState, &mut Handle<ColorMaterial>)>) {
-    for (state, mut mat) in &mut query.iter() {
-        match state {
+        match *state {
             TileState::Alive => {
                 *mat = theme.alive;
             }
