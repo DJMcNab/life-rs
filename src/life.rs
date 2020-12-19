@@ -1,5 +1,5 @@
 use super::board::Board;
-use bevy::prelude::*;
+use bevy::{core::FixedTimestep, prelude::*};
 use rand::Rng;
 
 #[derive(Clone)]
@@ -13,9 +13,15 @@ impl Plugin for Life {
     fn build(&self, app: &mut AppBuilder) {
         app.add_resource(Board::new(64, 64, 2.0))
             .add_resource(self.clone())
-            .add_startup_system(setup.system())
-            .add_system(rules.system())
-            .add_system_to_stage(stage::POST_UPDATE, update_tiles.system());
+            .add_stage_after(
+                stage::UPDATE,
+                "fixed_update",
+                SystemStage::serial()
+                    .with_run_criteria(FixedTimestep::step(0.050))
+                    .with_system(rules.system())
+                    .with_system(update_tiles.system()),
+            )
+            .add_startup_system(setup.system());
     }
 }
 
@@ -157,7 +163,7 @@ fn update_tiles(
     theme: Res<ColorTheme>,
     mut query: Query<(&mut TileState, &Tile, &mut Handle<ColorMaterial>)>,
 ) {
-    for (mut state, tile, mut mat) in &mut query.iter_mut() {
+    for (mut state, tile, mut mat) in query.iter_mut() {
         *state = tile.next_state;
         match *state {
             TileState::Alive => {
