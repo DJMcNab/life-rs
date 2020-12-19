@@ -18,6 +18,7 @@ impl Plugin for Life {
             .add_system_to_stage(stage::POST_UPDATE, update_tiles.system());
     }
 }
+
 #[derive(Copy, Clone, PartialEq, Debug, Eq)]
 pub enum TileState {
     Alive,
@@ -37,7 +38,7 @@ struct Tile {
 }
 
 fn setup(
-    mut commands: Commands,
+    commands: &mut Commands,
     life: Res<Life>,
     board: Res<Board>,
     mut assets: ResMut<Assets<ColorMaterial>>,
@@ -51,22 +52,21 @@ fn setup(
         board: assets.add(life.board_color.into()),
     };
 
-    let exterior = Entity::new();
-    commands.spawn_as_entity(exterior, (TileState::Dead,));
+    commands.spawn((TileState::Dead,));
 
-    commands
-        .spawn(Camera2dComponents::default())
-        .spawn(SpriteComponents {
-            material: color_theme.board,
-            translation: Translation(Vec3::zero()),
-            sprite: Sprite {
-                size: pixel_size + board.border,
-            },
-            ..Default::default()
-        });
+    let exterior = commands.current_entity().unwrap();
+
+    commands.spawn(Camera2dBundle::default());
+    commands.spawn(SpriteBundle {
+        transform: Transform::from_translation(Vec3::unit_z()),
+        material: color_theme.board.clone(),
+        sprite: Sprite::new(pixel_size + board.border),
+        ..Default::default()
+    });
     let mut cells = Vec::with_capacity(board.length() as usize);
     for _ in 0..board.length() {
-        cells.push(Entity::new());
+        commands.spawn(());
+        cells.push(commands.current_entity().unwrap());
     }
 
     let cells = cells;
@@ -75,30 +75,32 @@ fn setup(
         let material;
         if rand.gen_bool(0.5) {
             state = TileState::Dead;
-            material = color_theme.dead;
+            material = color_theme.dead.clone();
         } else {
             state = TileState::Alive;
-            material = color_theme.alive;
+            material = color_theme.alive.clone();
         }
 
         let offset = tile_size / Vec2::new(2.0, 2.0);
         let center = pixel_size / Vec2::new(2.0, 2.0);
 
         let pos2: Vec2 = Vec2::from(board.idx2vec(index as i32)) * tile_size - center + offset;
-        let pos3 = Vec3::new(pos2.x(), pos2.y(), 1.0);
+        let pos3 = Vec3::new(pos2.x, pos2.y, 10.0);
 
-        let sprite = SpriteComponents {
+        let sprite = SpriteBundle {
             material,
-            translation: Translation(pos3),
+            transform: Transform::from_translation(pos3),
             sprite: Sprite {
                 size: tile_size - board.border,
+                ..Default::default()
             },
             ..Default::default()
         };
 
         let neighbours = neighbours(exterior, &*board, index as i32, &cells);
+        commands.set_current_entity(*cell);
         commands
-            .spawn_as_entity(*cell, sprite)
+            .with_bundle(sprite)
             .with(Tile {
                 neighbours,
                 next_state: state,
@@ -128,15 +130,12 @@ fn neighbours(default: Entity, board: &Board, index: i32, cells: &[Entity]) -> [
 }
 
 fn rules(mut tiles: Query<(&mut Tile, &TileState)>, livenesses: Query<&TileState>) {
-    for (mut tile, state) in &mut tiles.iter() {
+    for (mut tile, state) in tiles.iter_mut() {
         let alive_count = tile
             .neighbours
             .iter()
             .filter(|&&n| {
-                *(livenesses
-                    .get::<TileState>(n)
-                    .expect("Every neighbour has a state"))
-                    == TileState::Alive
+                *(livenesses.get(n).expect("Every neighbour has a state")) == TileState::Alive
             })
             .count();
         match state {
@@ -158,14 +157,14 @@ fn update_tiles(
     theme: Res<ColorTheme>,
     mut query: Query<(&mut TileState, &Tile, &mut Handle<ColorMaterial>)>,
 ) {
-    for (mut state, tile, mut mat) in &mut query.iter() {
+    for (mut state, tile, mut mat) in &mut query.iter_mut() {
         *state = tile.next_state;
         match *state {
             TileState::Alive => {
-                *mat = theme.alive;
+                *mat = theme.alive.clone();
             }
             TileState::Dead => {
-                *mat = theme.dead;
+                *mat = theme.dead.clone();
             }
         }
     }
