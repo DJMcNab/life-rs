@@ -1,5 +1,7 @@
 use bevy::{core::FixedTimestep, prelude::*};
+use rand::seq::SliceRandom;
 use rand::Rng;
+use rand::SeedableRng;
 
 use super::board::*;
 
@@ -65,9 +67,8 @@ fn setup(
             ..Default::default()
         });
 
+    let mut rng = rand::rngs::StdRng::seed_from_u64(0xe505af0ab1519ba4);
     for idx in 0..board.len() {
-        let mut rng = rand::thread_rng();
-
         let coords = board.idx2cds(idx);
 
         let offset = tile_size / Vec2::new(2.0, 2.0);
@@ -76,15 +77,13 @@ fn setup(
         let pos2 = board.idx2cds(idx).to_vec() * tile_size - center + offset;
         let pos3 = Vec3::new(pos2.x, pos2.y, 1.0);
 
-        let state = if rng.gen_bool(0.5) {
-            TileState::Alive
-        } else {
-            TileState::Dead
-        };
+        let state = **&[TileState::Alive, TileState::Dead]
+            .choose(&mut rng)
+            .unwrap();
 
         commands
             .spawn(SpriteBundle {
-                material: theme.alive.clone_weak(),
+                material: theme.alive.clone(),
                 transform: Transform::from_translation(pos3),
                 sprite: Sprite {
                     size: tile_size - theme.border,
@@ -143,13 +142,13 @@ fn update_tiles(
     for (coords, gen, mut mat) in query.iter_mut() {
         let mut tile = board.get_mut_tile(*coords).unwrap();
         tile.state = gen.state;
-    
+
         match tile.state {
             TileState::Alive => {
-                *mat = colors.alive.clone_weak();
+                *mat = colors.alive.clone();
             }
             TileState::Dead => {
-                *mat = colors.dead.clone_weak();
+                *mat = colors.dead.clone();
             }
         }
     }
