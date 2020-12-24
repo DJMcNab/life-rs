@@ -157,7 +157,7 @@ fn update_tiles(
     time: Res<Time>,
     mut storage: ResMut<WrapsTime>,
     mut queries: QuerySet<(
-        Query<(&Coordinates, &Generation, &mut Handle<ColorMaterial>)>,
+        Query<(&Coordinates, &Generation, &mut Handle<ColorMaterial>), Changed<Generation>>,
         Query<(&Coordinates, &Generation)>,
     )>,
 ) {
