@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::{core::FixedTimestep, prelude::*};
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -19,6 +21,7 @@ impl Plugin for Life {
     fn build(&self, app: &mut AppBuilder) {
         app.add_resource(self.clone())
             .add_resource(Board::new(self.width, self.height))
+            .init_resource::<WrapsTime>()
             .add_stage_after(
                 stage::UPDATE,
                 "fixed_update",
@@ -100,7 +103,12 @@ fn setup(
     commands.insert_resource(theme);
 }
 
-fn rules(board: ResMut<Board>, mut query: Query<(&mut Generation, &Coordinates)>) {
+fn rules(
+    board: ResMut<Board>,
+    mut query: Query<(&mut Generation, &Coordinates)>,
+    time: Res<Time>,
+    mut storage: ResMut<WrapsTime>,
+) {
     for (mut gen, coords) in query.iter_mut() {
         let tile = board.get_tile(*coords).unwrap();
 
@@ -132,14 +140,41 @@ fn rules(board: ResMut<Board>, mut query: Query<(&mut Generation, &Coordinates)>
             }
         }
     }
+    if storage.2 == false {
+        storage.2 = true;
+    } else {
+        panic!("This should be impossible");
+    }
+    storage.0 = time.time_since_startup();
 }
+
+#[derive(Default)]
+struct WrapsTime(pub Duration, pub Duration, pub bool);
 
 fn update_tiles(
     mut board: ResMut<Board>,
     colors: Res<Theme>,
-    mut query: Query<(&Coordinates, &Generation, &mut Handle<ColorMaterial>), Changed<Generation>>,
+    time: Res<Time>,
+    mut storage: ResMut<WrapsTime>,
+    mut queries: QuerySet<(
+        Query<(&Coordinates, &Generation, &mut Handle<ColorMaterial>)>,
+        Query<(&Coordinates, &Generation)>,
+    )>,
 ) {
-    for (coords, gen, mut mat) in query.iter_mut() {
+    if storage.2 == true {
+        storage.2 = false;
+    } else {
+        panic!("This should be impossible");
+    }
+    let new_len = time.time_since_startup() - storage.0;
+    if time.time_since_startup() - storage.0 > storage.1 {
+        storage.1 = new_len;
+        println!(
+            "update_tiles ran {:?} seconds after rules. This is a new maximum",
+            time.time_since_startup() - storage.0
+        );
+    }
+    for (coords, gen, mut mat) in queries.q0_mut().iter_mut() {
         let mut tile = board.get_mut_tile(*coords).unwrap();
         tile.state = gen.state;
 
@@ -150,6 +185,12 @@ fn update_tiles(
             TileState::Dead => {
                 *mat = colors.dead.clone();
             }
+        }
+    }
+    for (coords, gen) in queries.q1().iter() {
+        let tile = board.get_mut_tile(*coords).unwrap();
+        if tile.state != gen.state {
+            error!(target: "Oh No", "{:?}", coords);
         }
     }
 }

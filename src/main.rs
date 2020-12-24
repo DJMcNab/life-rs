@@ -7,9 +7,9 @@ use life::*;
 fn main() {
     App::build()
         .add_plugins(DefaultPlugins)
-        .add_plugin(DiagnosticsPlugin)
-        .add_plugin(FrameTimeDiagnosticsPlugin)
-        .add_plugin(PrintDiagnosticsPlugin::default())
+        // .add_plugin(DiagnosticsPlugin)
+        // .add_plugin(FrameTimeDiagnosticsPlugin)
+        // .add_plugin(PrintDiagnosticsPlugin::default())
         .add_plugin(Life {
             width: 80,
             height: 80,
